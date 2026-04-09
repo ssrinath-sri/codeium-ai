@@ -1,41 +1,58 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 const json_rules_engine_1 = require("json-rules-engine");
-async function main() {
-    const engine = new json_rules_engine_1.Engine();
-    // Define a rule
-    const rule = {
-        conditions: {
-            all: [
-                {
-                    fact: 'temperature',
-                    operator: 'greaterThan',
-                    value: 100
-                }
-            ]
-        },
-        event: {
-            type: 'temperature-alert',
-            params: {
-                message: 'Temperature is too high!'
+const express_1 = __importDefault(require("express"));
+const app = (0, express_1.default)();
+const port = 3000;
+app.use(express_1.default.json());
+const engine = new json_rules_engine_1.Engine();
+// Define a coupon validation rule
+const couponRule = {
+    conditions: {
+        all: [
+            {
+                fact: 'couponCode',
+                operator: 'equal',
+                value: 'SAVE10'
+            },
+            {
+                fact: 'amount',
+                operator: 'greaterThan',
+                value: 100
             }
+        ]
+    },
+    event: {
+        type: 'coupon-applied',
+        params: {
+            discount: 10,
+            message: '10% discount applied!'
         }
-    };
-    // Add the rule to the engine
-    engine.addRule(rule);
-    // Define facts
-    const facts = {
-        temperature: 110
-    };
-    // Run the engine
-    const results = await engine.run(facts);
-    // Check for events
-    if (results.events.length > 0) {
-        const event = results.events[0];
-        console.log('Alert:', event.params?.message || 'No message');
     }
-    else {
-        console.log('No alerts');
+};
+// Add the rule to the engine
+engine.addRule(couponRule);
+// Endpoint to validate coupon
+app.post('/validate-coupon', async (req, res) => {
+    try {
+        const { couponCode, facts } = req.body;
+        const allFacts = { ...facts, couponCode };
+        const results = await engine.run(allFacts);
+        res.json({
+            valid: results.events.length > 0,
+            events: results.events.map(event => ({
+                type: event.type,
+                params: event.params
+            }))
+        });
     }
-}
-main().catch(console.error);
+    catch (error) {
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+app.listen(port, () => {
+    console.log(`Server running on port ${port}`);
+});

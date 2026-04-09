@@ -1,45 +1,59 @@
 import { Engine } from 'json-rules-engine';
+import express from 'express';
 
-async function main() {
-  const engine = new Engine();
+const app = express();
+const port = 3000;
 
-  // Define a rule
-  const rule = {
-    conditions: {
-      all: [
-        {
-          fact: 'temperature',
-          operator: 'greaterThan',
-          value: 100
-        }
-      ]
-    },
-    event: {
-      type: 'temperature-alert',
-      params: {
-        message: 'Temperature is too high!'
+app.use(express.json());
+
+const engine = new Engine();
+
+// Define a coupon validation rule
+const couponRule = {
+  conditions: {
+    all: [
+      {
+        fact: 'couponCode',
+        operator: 'equal',
+        value: 'SAVE10'
+      },
+      {
+        fact: 'amount',
+        operator: 'greaterThan',
+        value: 100
       }
+    ]
+  },
+  event: {
+    type: 'coupon-applied',
+    params: {
+      discount: 10,
+      message: '10% discount applied!'
     }
-  };
-
-  // Add the rule to the engine
-  engine.addRule(rule);
-
-  // Define facts
-  const facts = {
-    temperature: 110
-  };
-
-  // Run the engine
-  const results = await engine.run(facts);
-
-  // Check for events
-  if (results.events.length > 0) {
-    const event = results.events[0];
-    console.log('Alert:', event.params?.message || 'No message');
-  } else {
-    console.log('No alerts');
   }
-}
+};
 
-main().catch(console.error);
+// Add the rule to the engine
+engine.addRule(couponRule);
+
+// Endpoint to validate coupon
+app.post('/validate-coupon', async (req, res) => {
+  try {
+    const { couponCode, facts } = req.body;
+    const allFacts = { ...facts, couponCode };
+    const results = await engine.run(allFacts);
+    res.json({
+      valid: results.events.length > 0,
+      events: results.events.map(event => ({
+        type: event.type,
+        params: event.params
+      }))
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.listen(port, () => {
+  console.log(`Server running on port ${port}`);
+});
