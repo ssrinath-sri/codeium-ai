@@ -1,0 +1,14 @@
+{
+  "name": "bun-mongodb-atlas-app",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun run src/server.ts",
+    "start": "bun run src/server.ts"
+  },
+  "dependencies": {
+    "mongodb": "^5.8.0",
+    "dotenv": "^16.3.1"
+  }
+}
